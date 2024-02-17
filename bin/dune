@@ -1,0 +1,6 @@
+(executable
+ (public_name mortgage)
+ (name main)
+ (libraries mortgage printbox printbox-text)
+ (preprocess
+  (pps ppx_deriving.show ppx_deriving.ord)))
