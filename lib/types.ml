@@ -1,5 +1,6 @@
 type row =
   { year_month : int * int
+  ; interest_rate : float
   ; loan_balance : float
   ; payment : float
   ; interest : float

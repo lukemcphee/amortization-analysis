@@ -1,6 +1,16 @@
 open Types
 module B = PrintBox
 
+(* static sample rates, pulled from Bank of England data here: *)
+(* https://www.bankofengland.co.uk/statistics/visual-summaries/quoted-household-interest-rates                                          *)
+let calculate_interest_rate value outstanding_principle =
+  let ltv = outstanding_principle /. value in
+  if (ltv >= 0.95) then 0.0591
+  else if (ltv >= 0.90) then 0.0545 
+  else if (ltv >= 0.85) then 0.0503 
+  else if (ltv >= 0.75) then 0.0473 
+  else  0.0462
+
 (* stolen from https://github.com/dbuenzli/gg/blob/8f761c278d0b2ee2adb94f9fbc033f1bfd76e536/src/gg.ml#L123-L126 *)
 let round_dfrac d x =
   if x -. Float.round x = 0.
@@ -17,6 +27,7 @@ let format_rows (rows : row list) =
     let year, month = r.year_month in
     [| B.int year
      ; B.int month
+     ; B.float r.interest_rate
      ; B.float @@ round_dfrac 2 r.payment
      ; B.float @@ round_dfrac 2 r.interest
      ; B.float @@ round_dfrac 2 r.principle
@@ -35,6 +46,7 @@ let format_rows (rows : row list) =
     Array.of_list
     @@ ([| B.sprintf "Year"
          ; B.sprintf "Month"
+         ; B.sprintf "Interest rate"
          ; B.sprintf "Payment"
          ; B.sprintf "Interest"
          ; B.sprintf "Principle"
@@ -60,17 +72,24 @@ let calc_total_monthly_principal total_monthly_payment outstanding_balance inter
   total_monthly_payment -. (outstanding_balance *. monthly_interest_rate)
 ;;
 
-let calculate_rows principal interest_rate term_years =
+let calculate_rows ?(property_value = None) ?(interest_rate = None) principal term_years =
+  let _ = interest_rate in 
+  let total_property_value = match property_value with
+    | Some property_value -> property_value
+    | None -> principal in
   let total_number_of_payments = float_of_int @@ (term_years * 12) in
-  let calculate_month year month remaining_balance =
-    let total_monthly_payment =
-      (* calc_total_monthly_payment principal interest_rate number_of_payments *)
-      calc_total_monthly_payment principal interest_rate total_number_of_payments
+  let calculate_month year month remaining_balance number_of_remaining_payments =
+    let updated_interest_rate = match interest_rate with
+      | Some rate -> rate
+      | None -> calculate_interest_rate total_property_value remaining_balance in
+    let total_monthly_payment = calc_total_monthly_payment remaining_balance updated_interest_rate number_of_remaining_payments
     in
+    (* let _ = print_endline @@ string_of_float updated_interest_rate in *)
     let monthly_principal =
-      calc_total_monthly_principal total_monthly_payment remaining_balance interest_rate
-    in
+      calc_total_monthly_principal total_monthly_payment remaining_balance updated_interest_rate in 
+    (* let _ = print_endline @@ string_of_float monthly_principal in *)
     { year_month = year, month
+    ; interest_rate = updated_interest_rate
     ; loan_balance = remaining_balance
     ; payment = total_monthly_payment
     ; interest = total_monthly_payment -. monthly_principal
@@ -82,7 +101,8 @@ let calculate_rows principal interest_rate term_years =
     if total_number_of_payments <= months_calculated
     then schedule
     else (
-      let next_month_details = calculate_month year month outstanding_balance in
+      let number_of_remaining_payments = total_number_of_payments -. months_calculated in 
+      let next_month_details = calculate_month year month outstanding_balance number_of_remaining_payments in
       let next_year = if month == 12 then year + 1 else year in
       let next_month = if month == 12 then 1 else month + 1 in
       let new_outstanding_balance = next_month_details.end_period_balance in
@@ -107,6 +127,5 @@ let calc_summary principal rows =
     in
     calc_total_cost rows 0.
   in
-  { Summary.total_cost;
-  principal}
+  { Summary.total_cost; principal }
 ;;
