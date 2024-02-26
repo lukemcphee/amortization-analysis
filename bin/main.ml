@@ -2,13 +2,12 @@ module B = PrintBox
 open Mortgage__Types
 (* open Core *)
 
-let principal = 427000.0
+let principal = 1000000.0
 let term = 25
 let rows = Mortgage.calculate_rows
 (* use property_value if you want to override the vaule used to calculate loan-to-value rate if nothing is provided initial principal is used, if interest_rate is provided, this won't do anything. *)
 (* use interest_rate to use a static interest rate (this will invalidate any property_value input, as this is only used to calculate floating rates *)
-             (* ~property_value: None *)
-             ~property_value: (Some 600000.0)
+             (* ~property_value: (Some 1500000.0) *)
              (* ~interest_rate: (Some 0.05) *)
              principal
              term
